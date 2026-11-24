@@ -1,5 +1,6 @@
 package dev.freemc.game;
 
+import dev.freemc.Dirs;
 import dev.freemc.json.Json;
 
 import java.util.List;
@@ -10,22 +11,26 @@ public final class Version {
 
     public final String id;
     public final String type;
-    final String mainClass;
-    final String assetsIndexId;
-    final RemoteFile assetIndex;
-    final RemoteFile client;
+    public final String mainClass;
+    public final String assetsIndexId;
+    public final RemoteFile assetIndex;
+    public final RemoteFile client;
     public final int javaMajor;
-    final String logConfigArgument;
-    final RemoteFile logConfig;
-    final List<Object> argumentsJvm;
-    final List<Object> argumentsGame;
-    final String minecraftArguments;
-    final List<Library> libraries;
+    public final String logConfigArgument;
+    public final RemoteFile logConfig;
+    public final List<Object> argumentsJvm;
+    public final List<Object> argumentsGame;
+    public final String minecraftArguments;
+    public final List<Library> libraries;
+    /** The version this one layers on top of (Fabric/Quilt profiles), or null. */
+    public final String inheritsFrom;
+    /** Version id whose client jar this one runs, so a child profile reuses the parent jar. */
+    public final String clientOwner;
 
-    private Version(String id, String type, String mainClass, String assetsIndexId, RemoteFile assetIndex,
-                    RemoteFile client, int javaMajor, String logConfigArgument, RemoteFile logConfig,
-                    List<Object> argumentsJvm, List<Object> argumentsGame, String minecraftArguments,
-                    List<Library> libraries) {
+    Version(String id, String type, String mainClass, String assetsIndexId, RemoteFile assetIndex,
+            RemoteFile client, int javaMajor, String logConfigArgument, RemoteFile logConfig,
+            List<Object> argumentsJvm, List<Object> argumentsGame, String minecraftArguments,
+            List<Library> libraries, String inheritsFrom, String clientOwner) {
         this.id = id;
         this.type = type;
         this.mainClass = mainClass;
@@ -39,6 +44,8 @@ public final class Version {
         this.argumentsGame = argumentsGame;
         this.minecraftArguments = minecraftArguments;
         this.libraries = libraries;
+        this.inheritsFrom = inheritsFrom;
+        this.clientOwner = clientOwner;
     }
 
     static Version parse(String json, Map<String, Boolean> features) {
@@ -70,9 +77,13 @@ public final class Version {
         if (gameArgs != null && gameArgs.isEmpty()) {
             gameArgs = null;
         }
+        if (jvmArgs != null && jvmArgs.isEmpty()) {
+            jvmArgs = null;
+        }
 
+        String id = Json.str(root, "id");
         return new Version(
-                Json.str(root, "id"),
+                id,
                 Json.str(root, "type", "release"),
                 Json.str(root, "mainClass"),
                 assetsId,
@@ -84,7 +95,53 @@ public final class Version {
                 jvmArgs,
                 gameArgs,
                 Json.str(root, "minecraftArguments"),
-                Library.parseAll(Json.list(root, "libraries"), features));
+                Library.parseAll(Json.list(root, "libraries"), features),
+                Json.str(root, "inheritsFrom"),
+                id);
+    }
+
+    /** Layers a profile (Fabric/Quilt) over its parent version file. */
+    static Version inherit(Version child, Version parent) {
+        List<Library> libraries = new java.util.ArrayList<>(parent.libraries);
+        libraries.addAll(child.libraries);
+
+        List<Object> jvm = new java.util.ArrayList<>();
+        if (parent.argumentsJvm != null) {
+            jvm.addAll(parent.argumentsJvm);
+        }
+        if (child.argumentsJvm != null) {
+            jvm.addAll(child.argumentsJvm);
+        }
+
+        List<Object> game = new java.util.ArrayList<>();
+        if (parent.argumentsGame != null) {
+            game.addAll(parent.argumentsGame);
+        }
+        if (child.argumentsGame != null) {
+            game.addAll(child.argumentsGame);
+        }
+
+        return new Version(
+                child.id,
+                child.type,
+                child.mainClass != null ? child.mainClass : parent.mainClass,
+                child.assetIndex != null ? child.assetsIndexId : parent.assetsIndexId,
+                child.assetIndex != null ? child.assetIndex : parent.assetIndex,
+                child.client != null ? child.client : parent.client,
+                Math.max(child.javaMajor, parent.javaMajor),
+                child.logConfigArgument != null ? child.logConfigArgument : parent.logConfigArgument,
+                child.logConfig != null ? child.logConfig : parent.logConfig,
+                jvm.isEmpty() ? null : jvm,
+                game.isEmpty() ? null : game,
+                child.minecraftArguments != null ? child.minecraftArguments : parent.minecraftArguments,
+                libraries,
+                child.inheritsFrom,
+                child.client != null ? child.id : parent.clientOwner);
+    }
+
+    /** Path of the client jar this version runs, which may belong to the parent version. */
+    public java.nio.file.Path clientJarPath() {
+        return Dirs.versionDir(clientOwner).resolve(clientOwner + ".jar");
     }
 
     private static RemoteFile remote(Map<String, Object> node) {

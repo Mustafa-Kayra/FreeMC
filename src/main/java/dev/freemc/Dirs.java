@@ -44,8 +44,14 @@ public final class Dirs {
         return ensure(root().resolve("assets"));
     }
 
-    public static Path game() {
-        return ensure(root().resolve("game"));
+    public static Path instances() {
+        return ensure(root().resolve("instances"));
+    }
+
+    public static Path instance(String instanceId) {
+        Path dir = ensure(instances().resolve(instanceId));
+        ensure(dir.resolve("mods"));
+        return dir;
     }
 
     public static Path versionDir(String versionId) {

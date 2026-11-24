@@ -36,6 +36,15 @@ public final class Json {
     }
 
     @SuppressWarnings("unchecked")
+    public static List<Object> array(String text) {
+        Object value = parse(text);
+        if (!(value instanceof List)) {
+            throw new IllegalArgumentException("expected a JSON array");
+        }
+        return (List<Object>) value;
+    }
+
+    @SuppressWarnings("unchecked")
     public static Map<String, Object> map(Object parent, String key) {
         if (!(parent instanceof Map)) {
             return null;

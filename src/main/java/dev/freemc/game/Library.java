@@ -43,24 +43,18 @@ final class Library {
             Map<String, Object> downloads = Json.map(entry, "downloads");
             Map<String, Object> nativesMap = Json.map(entry, "natives");
             String nativesClassifier = nativesMap == null ? null : Json.str(nativesMap, Os.NAME);
+            String repository = Json.str(entry, "url", MOJANG_LIBRARIES);
 
             RemoteFile artifact = remote(Json.map(downloads, "artifact"));
             if (artifact == null && downloads == null && nativesClassifier == null) {
-                String path = mavenPath(name, null, "jar");
-                if (path != null) {
-                    artifact = new RemoteFile(path, MOJANG_LIBRARIES + path, null, 0);
-                }
+                artifact = maven(name, null, repository, Json.str(entry, "sha1"), Json.num(entry, "size", 0));
             }
 
             RemoteFile natives = null;
-            Map<String, Object> classifiers = Json.map(downloads, "classifiers");
             if (nativesClassifier != null) {
-                natives = remote(Json.map(classifiers, nativesClassifier));
+                natives = remote(Json.map(Json.map(downloads, "classifiers"), nativesClassifier));
                 if (natives == null) {
-                    String path = mavenPath(name, nativesClassifier, "jar");
-                    if (path != null) {
-                        natives = new RemoteFile(path, MOJANG_LIBRARIES + path, null, 0);
-                    }
+                    natives = maven(name, nativesClassifier, repository, null, 0);
                 }
             }
 
@@ -68,8 +62,8 @@ final class Library {
             Map<String, Object> extract = Json.map(entry, "extract");
             if (extract != null) {
                 for (Object pattern : Json.list(extract, "exclude")) {
-                    if (pattern instanceof String) {
-                        exclude.add((String) pattern);
+                    if (pattern instanceof String text) {
+                        exclude.add(text);
                     }
                 }
             }
@@ -81,21 +75,29 @@ final class Library {
         return libraries;
     }
 
+    private static RemoteFile maven(String coordinates, String classifier, String repository, String sha1, long size) {
+        String path = mavenPath(coordinates, classifier);
+        if (path == null) {
+            return null;
+        }
+        String base = repository.endsWith("/") ? repository : repository + "/";
+        return new RemoteFile(path, base + path, sha1, size);
+    }
+
     private static RemoteFile remote(Map<String, Object> node) {
         if (node == null) {
             return null;
         }
-        String path = Json.str(node, "path");
         String url = Json.str(node, "url");
         if (url == null) {
             return null;
         }
-        return new RemoteFile(path, url, Json.str(node, "sha1"), Json.num(node, "size", 0));
+        return new RemoteFile(Json.str(node, "path"), url, Json.str(node, "sha1"), Json.num(node, "size", 0));
     }
 
     /** "group:artifact:version[:classifier][@ext]" to a path inside the libraries root. */
-    static String mavenPath(String coordinates, String classifier, String defaultExt) {
-        String ext = defaultExt;
+    static String mavenPath(String coordinates, String classifier) {
+        String ext = "jar";
         String name = coordinates;
         int at = name.indexOf('@');
         if (at >= 0) {

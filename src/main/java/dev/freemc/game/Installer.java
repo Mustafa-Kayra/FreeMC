@@ -32,7 +32,8 @@ import java.util.zip.ZipFile;
 
 /**
  * Downloads and prepares a Minecraft version from Mojang's public CDN: version file, client jar,
- * platform libraries, natives and the asset index.
+ * platform libraries, natives and the asset index. Version files that declare {@code inheritsFrom}
+ * (Fabric, Quilt) are layered over their parent before installation.
  */
 public final class Installer {
 
@@ -59,33 +60,62 @@ public final class Installer {
         return VersionManifest.parse(Files.readString(cache, StandardCharsets.UTF_8));
     }
 
-    public static GameInstall install(String versionId, Progress progress) throws IOException {
-        AtomicInteger done = new AtomicInteger();
-        AtomicInteger total = new AtomicInteger();
+    /** Installs a vanilla version from the Mojang manifest. */
+    public static GameInstall install(String versionId, Path gameDir, Progress progress) throws IOException {
+        Pending pending = new Pending(progress);
+        Version version = resolved(versionId, pending, 0);
+        return finish(version, gameDir, pending);
+    }
 
-        VersionManifest manifest = manifest(false, progress);
-        VersionManifest.Entry entry = manifest.byId(versionId);
-        if (entry == null) {
-            throw new IOException("Sürüm bulunamadı: " + versionId);
+    /** Installs a custom profile (Fabric/Quilt) fetched from a meta endpoint. */
+    public static GameInstall installProfile(String profileUrl, Path gameDir, Progress progress) throws IOException {
+        Pending pending = new Pending(progress);
+        String body = Download.text(URI.create(profileUrl));
+        Map<String, Object> root = Json.object(body);
+        String id = Json.str(root, "id");
+        if (id == null) {
+            throw new IOException("Yükleyici profili geçersiz: " + profileUrl);
         }
+        Path json = Dirs.versionDir(id).resolve(id + ".json");
+        Files.writeString(json, body, StandardCharsets.UTF_8);
+        pending.progress.log("Yükleyici profili: " + id);
+        Version version = resolved(id, pending, 0);
+        return finish(version, gameDir, pending);
+    }
 
-        Path versionJson = Dirs.versionDir(versionId).resolve(versionId + ".json");
-        progress.log("Sürüm dosyası: " + versionId);
-        Download.file(URI.create(entry.url()), versionJson, entry.sha1(), 0);
-
-        Version version = Version.parse(Files.readString(versionJson, StandardCharsets.UTF_8), features());
-        if (version.mainClass == null) {
-            throw new IOException("Sürüm dosyası geçersiz (mainClass yok): " + versionId);
+    private static Version resolved(String versionId, Pending pending, int depth) throws IOException {
+        if (depth > 4) {
+            throw new IOException("Sürüm zinciri çok derin: " + versionId);
         }
+        Path json = Dirs.versionDir(versionId).resolve(versionId + ".json");
+        if (!Files.isRegularFile(json)) {
+            VersionManifest manifest = manifest(false, pending.progress);
+            VersionManifest.Entry entry = manifest.byId(versionId);
+            if (entry == null) {
+                throw new IOException("Sürüm bulunamadı: " + versionId);
+            }
+            pending.progress.log("Sürüm dosyası: " + versionId);
+            Download.file(URI.create(entry.url()), json, entry.sha1(), 0);
+        }
+        Version version = Version.parse(Files.readString(json, StandardCharsets.UTF_8), features());
+        if (version.inheritsFrom == null) {
+            return version;
+        }
+        Version parent = resolved(version.inheritsFrom, pending, depth + 1);
+        return Version.inherit(version, parent);
+    }
 
+    private static GameInstall finish(Version version, Path gameDir, Pending pending) throws IOException {
+        Progress progress = pending.progress;
         Path librariesRoot = Dirs.libraries();
         Path assetsRoot = Dirs.assets();
-        Path clientJar = Dirs.versionDir(versionId).resolve(versionId + ".jar");
+        Path clientJar = version.clientJarPath();
 
         List<RemoteFile> batch = new ArrayList<>();
         Set<String> seen = new LinkedHashSet<>();
-        if (version.client != null && seen.add(version.client.path == null ? "client" : version.client.path)) {
-            batch.add(new RemoteFile(null, version.client.url, version.client.sha1, version.client.size));
+        if (version.client != null) {
+            batch.add(new RemoteFile(clientJar.getFileName().toString(), version.client.url,
+                    version.client.sha1, version.client.size));
         }
         for (Library library : version.libraries) {
             if (library.artifact != null && library.artifact.path != null && seen.add(library.artifact.path)) {
@@ -103,12 +133,12 @@ public final class Installer {
         }
 
         progress.log("Kütüphaneler ve oyun dosyası indiriliyor");
-        fetch(batch, librariesRoot, assetsRoot, clientJar, progress, done, total);
+        fetch(batch, librariesRoot, assetsRoot, clientJar, pending);
 
-        Path nativesDir = Dirs.nativesDir(versionId);
+        Path nativesDir = Dirs.nativesDir(version.id);
         extractNatives(version, librariesRoot, nativesDir, progress);
 
-        Path assetsDir = installAssets(version, Dirs.game(), assetsRoot, progress, done, total);
+        Path assetsDir = installAssets(version, gameDir, assetsRoot, pending);
 
         List<Path> classpath = new ArrayList<>();
         for (Library library : version.libraries) {
@@ -118,8 +148,8 @@ public final class Installer {
         }
         classpath.add(clientJar);
 
-        progress.log("Kurulum tamam: " + versionId + " (" + version.libraries.size() + " kütüphane)");
-        return new GameInstall(version, Dirs.game(), assetsDir, nativesDir, classpath);
+        progress.log("Kurulum tamam: " + version.id + " (" + version.libraries.size() + " kütüphane)");
+        return new GameInstall(version, gameDir, assetsDir, nativesDir, classpath);
     }
 
     private static Map<String, Boolean> features() {
@@ -133,16 +163,14 @@ public final class Installer {
         return features;
     }
 
-    /**
-     * Fetches a batch. Files with a null path go to the client jar; asset-index and log-config
-     * entries are routed to their own roots.
-     */
+    /** Files with the client jar's name go there; asset-index and log-config entries have their own roots. */
     private static void fetch(List<RemoteFile> files, Path librariesRoot, Path assetsRoot, Path clientJar,
-                              Progress progress, AtomicInteger done, AtomicInteger total) throws IOException {
+                              Pending pending) throws IOException {
         if (files.isEmpty()) {
             return;
         }
-        total.addAndGet(files.size());
+        Progress progress = pending.progress;
+        pending.total.addAndGet(files.size());
         ExecutorService pool = Executors.newFixedThreadPool(Math.min(8, files.size()));
         AtomicReference<IOException> failure = new AtomicReference<>();
         List<Future<?>> futures = new ArrayList<>();
@@ -152,8 +180,8 @@ public final class Installer {
                     return;
                 }
                 try {
-                    Download.file(URI.create(file.url), target(file, librariesRoot, assetsRoot, clientJar),
-                            file.sha1, file.size);
+                    Path target = target(file, librariesRoot, assetsRoot, clientJar);
+                    Download.file(URI.create(file.url), target, file.sha1, file.size);
                 } catch (IOException e) {
                     String message = String.valueOf(e.getMessage());
                     if (message.contains("HTTP 404")) {
@@ -163,7 +191,7 @@ public final class Installer {
                         return;
                     }
                 }
-                progress.files(done.incrementAndGet(), total.get());
+                progress.files(pending.done.incrementAndGet(), pending.total.get());
             }));
         }
         pool.shutdown();
@@ -190,6 +218,10 @@ public final class Installer {
         if (file.path.startsWith("indexes/") || file.path.startsWith("log_configs/")) {
             return assetsRoot.resolve(file.path);
         }
+        String clientName = clientJar.getFileName().toString();
+        if (file.path.equals(clientName)) {
+            return clientJar;
+        }
         return librariesRoot.resolve(file.path);
     }
 
@@ -210,7 +242,9 @@ public final class Installer {
             }
             count += extract(jar, nativesDir, library.extractExclude);
         }
-        progress.log("Natives açıldı (" + count + " dosya)");
+        if (count > 0) {
+            progress.log("Natives açıldı (" + count + " dosya)");
+        }
     }
 
     private static int extract(Path jar, Path targetDir, List<String> excludes) throws IOException {
@@ -247,8 +281,9 @@ public final class Installer {
         return written;
     }
 
-    private static Path installAssets(Version version, Path gameDir, Path assetsRoot, Progress progress,
-                                      AtomicInteger done, AtomicInteger total) throws IOException {
+    private static Path installAssets(Version version, Path gameDir, Path assetsRoot, Pending pending)
+            throws IOException {
+        Progress progress = pending.progress;
         if (version.assetIndex == null) {
             progress.log("Bu sürümde asset indeksi yok, atlanıyor");
             return assetsRoot;
@@ -260,7 +295,7 @@ public final class Installer {
             return assetsRoot;
         }
 
-        progress.log("Varlıklar indiriliyor (" + objects.size() + " nesne)");
+        progress.log("Varlıklar hazırlanıyor (" + objects.size() + " nesne)");
         List<RemoteFile> batch = new ArrayList<>();
         for (Map.Entry<String, Object> entry : objects.entrySet()) {
             String hash = Json.str(entry.getValue(), "hash");
@@ -272,7 +307,7 @@ public final class Installer {
             batch.add(new RemoteFile("objects/" + prefix + "/" + hash,
                     RESOURCES_URL + prefix + "/" + hash, hash, size));
         }
-        fetch(batch, assetsRoot, assetsRoot, assetsRoot.resolve("indexes/client.jar"), progress, done, total);
+        fetch(batch, assetsRoot, assetsRoot, assetsRoot.resolve("indexes/client.jar"), pending);
 
         boolean virtual = Json.bool(index, "virtual", false);
         boolean mapToResources = Json.bool(index, "map_to_resources", false);
@@ -313,5 +348,16 @@ public final class Installer {
             }
         }
         Files.deleteIfExists(dir);
+    }
+
+    /** Per-install progress counters shared by the helper methods. */
+    private static final class Pending {
+        final Progress progress;
+        final AtomicInteger done = new AtomicInteger();
+        final AtomicInteger total = new AtomicInteger();
+
+        Pending(Progress progress) {
+            this.progress = progress;
+        }
     }
 }

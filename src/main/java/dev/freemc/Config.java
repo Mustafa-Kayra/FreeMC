@@ -22,6 +22,7 @@ public final class Config {
         config.props.setProperty("username", "Player");
         config.props.setProperty("ramMb", "2048");
         config.props.setProperty("version", "");
+        config.props.setProperty("loader", "vanilla");
         if (Files.isRegularFile(FILE)) {
             try (InputStream in = Files.newInputStream(FILE)) {
                 config.props.load(in);
@@ -60,6 +61,15 @@ public final class Config {
 
     public Config version(String value) {
         props.setProperty("version", value == null ? "" : value);
+        return this;
+    }
+
+    public String loader() {
+        return props.getProperty("loader", "vanilla");
+    }
+
+    public Config loader(String value) {
+        props.setProperty("loader", value == null ? "vanilla" : value);
         return this;
     }
 

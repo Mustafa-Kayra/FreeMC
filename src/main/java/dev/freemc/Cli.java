@@ -31,6 +31,7 @@ final class Cli {
         int ramMb = 2048;
         boolean launch = false;
         boolean list = false;
+        boolean help = false;
 
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
@@ -41,6 +42,7 @@ final class Cli {
                 case "--ram" -> ramMb = parseInt(value(args, i, Integer.toString(ramMb)), ramMb);
                 case "--launch" -> launch = true;
                 case "--list-versions" -> list = true;
+                case "--help", "-h" -> help = true;
                 default -> {
                     // unknown flags are ignored
                 }
@@ -63,6 +65,11 @@ final class Cli {
                 }
             }
         };
+
+        if (help) {
+            usage();
+            return;
+        }
 
         try {
             if (list) {
@@ -105,6 +112,26 @@ final class Cli {
             Thread.currentThread().interrupt();
             System.exit(130);
         }
+    }
+
+    private static void usage() {
+        System.out.println("""
+                FreeMC - offline Minecraft launcher
+
+                Kullanim:
+                  java -jar freemc.jar                      arayuzu ac
+                  java -jar freemc.jar --cli [secenekler]   arayuzsuz kurulum/baslatma
+
+                Secenekler:
+                  --version, -v <surum>   Minecraft surumu (varsayilan 1.20.1)
+                  --loader <ad>           vanilla | fabric (varsayilan vanilla)
+                  --user, -u <ad>         oyuncu adi (varsayilan Player)
+                  --ram <mb>              ayrilacak bellek (varsayilan 2048)
+                  --mod <slug>            Modrinth'ten mod kur
+                  --launch                kurulumdan sonra oyunu baslat
+                  --list-versions         surumleri listele
+                  --help, -h              bu metni goster
+                """);
     }
 
     private static String value(String[] args, int index, String fallback) {

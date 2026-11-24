@@ -75,6 +75,27 @@ public final class Download {
         }
     }
 
+
+    public static String postJson(URI uri, String body) throws IOException {
+        HttpRequest request = HttpRequest.newBuilder(uri)
+                .timeout(Duration.ofSeconds(60))
+                .header("User-Agent", "FreeMC/1.0 (launcher)")
+                .header("Content-Type", "application/json")
+                .header("Accept", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body, java.nio.charset.StandardCharsets.UTF_8))
+                .build();
+        try {
+            HttpResponse<String> response = CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() / 100 != 2) {
+                throw new IOException("HTTP " + response.statusCode() + " for " + uri);
+            }
+            return response.body();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("istek kesildi: " + uri, e);
+        }
+    }
+
     private static void transfer(URI uri, Path part) throws IOException, InterruptedException {
         HttpRequest request = HttpRequest.newBuilder(uri)
                 .timeout(Duration.ofMinutes(10))

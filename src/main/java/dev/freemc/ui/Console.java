@@ -8,7 +8,7 @@ import java.awt.BorderLayout;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 
-/** The shared console strip both tabs write into. */
+/** Collapsible console drawer shared by every page. */
 public final class Console extends RoundPanel {
 
     private static final int MAX_LINES = 2000;
@@ -17,15 +17,14 @@ public final class Console extends RoundPanel {
     private final JTextArea area = new JTextArea();
 
     public Console() {
-        super(Theme.SURFACE, Theme.BORDER, 14);
+        super(Theme.SURFACE_LOW, Theme.OUTLINE_SOFT, 8);
         setLayout(new BorderLayout());
-        setBorder(new EmptyBorder(8, 8, 8, 8));
+        setBorder(new EmptyBorder(6, 6, 6, 6));
         Theme.styleLog(area);
         area.setEditable(false);
-
         JScrollPane scroll = new JScrollPane(area);
         scroll.setBorder(null);
-        scroll.getViewport().setBackground(Theme.FIELD);
+        scroll.getViewport().setBackground(Theme.SURFACE_LOW);
         add(scroll, BorderLayout.CENTER);
     }
 

@@ -23,6 +23,9 @@ public final class Config {
         config.props.setProperty("ramMb", "2048");
         config.props.setProperty("version", "");
         config.props.setProperty("loader", "vanilla");
+        config.props.setProperty("profile", "");
+        config.props.setProperty("language", "tr");
+        config.props.setProperty("theme", "dark");
         if (Files.isRegularFile(FILE)) {
             try (InputStream in = Files.newInputStream(FILE)) {
                 config.props.load(in);
@@ -70,6 +73,33 @@ public final class Config {
 
     public Config loader(String value) {
         props.setProperty("loader", value == null ? "vanilla" : value);
+        return this;
+    }
+
+    public String profile() {
+        return props.getProperty("profile", "");
+    }
+
+    public Config profile(String value) {
+        props.setProperty("profile", value == null ? "" : value);
+        return this;
+    }
+
+    public String language() {
+        return props.getProperty("language", "tr");
+    }
+
+    public Config language(String value) {
+        props.setProperty("language", value == null ? "tr" : value);
+        return this;
+    }
+
+    public String theme() {
+        return props.getProperty("theme", "dark");
+    }
+
+    public Config theme(String value) {
+        props.setProperty("theme", value == null ? "dark" : value);
         return this;
     }
 

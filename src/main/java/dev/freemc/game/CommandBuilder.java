@@ -24,6 +24,11 @@ public final class CommandBuilder {
 
     public static List<String> build(GameInstall install, String javaCommand, String username, String uuid,
                                      String accessToken, int ramMb) {
+        return build(install, javaCommand, username, uuid, accessToken, ramMb, "", "");
+    }
+
+    public static List<String> build(GameInstall install, String javaCommand, String username, String uuid,
+                                     String accessToken, int ramMb, String extraJvmArgs, String quickServer) {
         Version version = install.version;
         Map<String, String> values = new HashMap<>();
         values.put("auth_player_name", username);
@@ -54,6 +59,13 @@ public final class CommandBuilder {
         command.add(javaCommand);
         command.add("-Xms" + Math.min(512, ramMb) + "M");
         command.add("-Xmx" + Math.max(512, ramMb) + "M");
+        if (extraJvmArgs != null && !extraJvmArgs.isBlank()) {
+            for (String token : extraJvmArgs.trim().split("\\s+")) {
+                if (!token.isBlank()) {
+                    command.add(token);
+                }
+            }
+        }
 
         if (version.argumentsJvm == null || version.argumentsJvm.isEmpty()) {
             command.add("-Dminecraft.launcher.brand=" + LAUNCHER_NAME);
@@ -74,6 +86,19 @@ public final class CommandBuilder {
             }
         } else {
             command.addAll(legacyArguments(values));
+        }
+        if (quickServer != null && !quickServer.isBlank()) {
+            String host = quickServer.trim();
+            String port = "25565";
+            int colon = host.lastIndexOf(':');
+            if (colon > 0) {
+                port = host.substring(colon + 1);
+                host = host.substring(0, colon);
+            }
+            command.add("--server");
+            command.add(host);
+            command.add("--port");
+            command.add(port);
         }
         widenNativePath(command, javaCommand);
         return command;

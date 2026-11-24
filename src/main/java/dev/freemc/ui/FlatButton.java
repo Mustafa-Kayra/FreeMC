@@ -13,25 +13,26 @@ import java.awt.RenderingHints;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 
-/** Flat, rounded button drawn by hand so the theme stays consistent on every platform. */
+/** Flat rounded button with an optional drawn glyph, matching the launcher theme. */
 public final class FlatButton extends JButton {
 
-    public enum Kind { PRIMARY, GHOST, DANGER, TAB }
+    public enum Kind { PRIMARY, GHOST, DANGER, NAV, TAB, ICON }
 
     private final Kind kind;
+    private String icon;
     private boolean hovered;
     private boolean active;
 
     public FlatButton(String text, Kind kind) {
-        super(text);
+        super(text == null ? "" : text);
         this.kind = kind;
-        setFont(kind == Kind.PRIMARY ? new Font(Font.SANS_SERIF, Font.BOLD, 14) : Theme.BODY);
-        setForeground(kind == Kind.PRIMARY ? Theme.ACCENT_INK : Theme.TEXT);
+        setFont(kind == Kind.PRIMARY ? Theme.display(Font.BOLD, 17f)
+                : kind == Kind.NAV ? Theme.body(Font.PLAIN, 13f) : Theme.body(Font.PLAIN, 12f));
+        setForeground(Theme.TEXT);
         setContentAreaFilled(false);
         setBorderPainted(false);
         setFocusPainted(false);
         setOpaque(false);
-        setRolloverEnabled(true);
         setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         setBorder(new EmptyBorder(padding().top, padding().left, padding().bottom, padding().right));
         addMouseListener(new MouseAdapter() {
@@ -49,6 +50,11 @@ public final class FlatButton extends JButton {
         });
     }
 
+    public FlatButton icon(String iconName) {
+        this.icon = iconName;
+        return this;
+    }
+
     public FlatButton active(boolean value) {
         this.active = value;
         repaint();
@@ -57,16 +63,22 @@ public final class FlatButton extends JButton {
 
     private java.awt.Insets padding() {
         return switch (kind) {
-            case PRIMARY -> new java.awt.Insets(11, 26, 11, 26);
-            case TAB -> new java.awt.Insets(8, 16, 8, 16);
-            case DANGER, GHOST -> new java.awt.Insets(7, 14, 7, 14);
+            case PRIMARY -> new java.awt.Insets(14, 30, 14, 30);
+            case NAV -> new java.awt.Insets(9, 12, 9, 12);
+            case TAB -> new java.awt.Insets(7, 14, 7, 14);
+            case ICON -> new java.awt.Insets(6, 6, 6, 6);
+            case DANGER, GHOST -> new java.awt.Insets(7, 12, 7, 12);
         };
     }
 
     @Override
     public Dimension getPreferredSize() {
         Dimension size = super.getPreferredSize();
-        size.height = Math.max(size.height, kind == Kind.PRIMARY ? 44 : 32);
+        size.height = Math.max(size.height, switch (kind) {
+            case PRIMARY -> 52;
+            case ICON -> 30;
+            default -> 32;
+        });
         return size;
     }
 
@@ -79,36 +91,49 @@ public final class FlatButton extends JButton {
         boolean enabled = isEnabled();
         int width = getWidth();
         int height = getHeight();
-        int radius = kind == Kind.PRIMARY ? 12 : 10;
+        int radius = kind == Kind.PRIMARY ? 10 : 8;
 
         Color background = switch (kind) {
-            case PRIMARY -> enabled ? (hovered ? Theme.ACCENT.brighter() : Theme.ACCENT) : Theme.SURFACE_ALT;
-            case GHOST -> active ? Theme.SURFACE_ALT : (hovered ? Theme.SURFACE_ALT : new Color(0, 0, 0, 0));
-            case TAB -> active ? Theme.SURFACE_ALT : (hovered ? new Color(0x1A1A24) : new Color(0, 0, 0, 0));
-            case DANGER -> hovered ? new Color(0x3A1E22) : new Color(0x24161A);
+            case PRIMARY -> enabled ? (hovered ? Theme.ACCENT.brighter() : Theme.ACCENT) : Theme.SURFACE_HIGH;
+            case NAV -> active ? Theme.SURFACE_TOP : (hovered ? Theme.SURFACE_HIGH : null);
+            case TAB -> active ? Theme.SURFACE_TOP : (hovered ? Theme.SURFACE : null);
+            case GHOST -> hovered ? Theme.SURFACE_HIGH : null;
+            case ICON -> hovered ? Theme.SURFACE_HIGH : null;
+            case DANGER -> hovered ? Theme.DANGER_BG : null;
         };
-        if (background.getAlpha() > 0) {
+        if (background != null) {
             g.setColor(background);
             g.fillRoundRect(0, 0, width, height, radius, radius);
         }
-        if (kind == Kind.TAB && active) {
-            g.setColor(Theme.ACCENT);
-            g.fillRoundRect(10, height - 3, width - 20, 2, 2, 2);
-        }
 
         Color ink = switch (kind) {
-            case PRIMARY -> enabled ? Theme.ACCENT_INK : Theme.MUTED;
+            case PRIMARY -> enabled ? Theme.ACCENT_INK : Theme.OUTLINE;
             case DANGER -> Theme.DANGER;
-            default -> enabled ? (active ? Theme.ACCENT : Theme.TEXT) : Theme.MUTED;
+            case NAV, TAB -> !enabled ? Theme.OUTLINE : active ? Theme.ACCENT : Theme.TEXT_MUTED;
+            default -> enabled ? (active ? Theme.ACCENT : Theme.TEXT) : Theme.OUTLINE;
         };
+
         g.setColor(ink);
         g.setFont(getFont());
         FontMetrics metrics = g.getFontMetrics();
         String text = getText();
+        int textY = (height - metrics.getHeight()) / 2 + metrics.getAscent();
+
         int textWidth = metrics.stringWidth(text);
-        int x = (width - textWidth) / 2;
-        int y = (height - metrics.getHeight()) / 2 + metrics.getAscent();
-        g.drawString(text, x, y);
+        int glyph = 16;
+        int gap = icon == null ? 0 : 8;
+        int block = textWidth + (icon == null ? 0 : glyph + gap);
+        int x = kind == Kind.NAV ? getInsets().left : (width - block) / 2;
+
+        if (icon != null) {
+            Graphics2D iconGraphics = (Graphics2D) g.create();
+            iconGraphics.translate(x, (height - glyph) / 2.0);
+            Icons.draw(iconGraphics, icon, glyph, ink);
+            iconGraphics.dispose();
+            x += glyph + gap;
+        }
+        g.setColor(ink);
+        g.drawString(text, x, textY);
         g.dispose();
     }
 }

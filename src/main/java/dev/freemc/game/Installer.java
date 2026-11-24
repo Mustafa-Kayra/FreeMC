@@ -111,6 +111,14 @@ public final class Installer {
         Path assetsRoot = Dirs.assets();
         Path clientJar = version.clientJarPath();
 
+        if (version.client != null && !version.clientOwner.equals(version.id) && !Files.isRegularFile(clientJar)) {
+            Path parentJar = Dirs.versionDir(version.clientOwner).resolve(version.clientOwner + ".jar");
+            if (Files.isRegularFile(parentJar)) {
+                Files.copy(parentJar, clientJar, StandardCopyOption.REPLACE_EXISTING);
+                progress.log("Oyun dosyası ebeveynden kopyalandı: " + version.clientOwner);
+            }
+        }
+
         List<RemoteFile> batch = new ArrayList<>();
         Set<String> seen = new LinkedHashSet<>();
         if (version.client != null) {

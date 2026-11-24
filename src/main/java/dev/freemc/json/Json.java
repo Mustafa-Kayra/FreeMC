@@ -290,4 +290,90 @@ public final class Json {
     private IllegalArgumentException error(String message) {
         return new IllegalArgumentException("JSON: " + message + " at offset " + pos);
     }
+
+    public static String write(Object value) {
+        StringBuilder sb = new StringBuilder();
+        writeValue(value, sb, 0);
+        return sb.toString();
+    }
+
+    private static void writeValue(Object value, StringBuilder sb, int depth) {
+        if (value == null) {
+            sb.append("null");
+        } else if (value instanceof String text) {
+            writeString(text, sb);
+        } else if (value instanceof Boolean || value instanceof Integer || value instanceof Long) {
+            sb.append(value);
+        } else if (value instanceof Number number) {
+            double d = number.doubleValue();
+            if (d == Math.rint(d) && !Double.isInfinite(d)) {
+                sb.append(number.longValue());
+            } else {
+                sb.append(d);
+            }
+        } else if (value instanceof Map<?, ?> map) {
+            if (map.isEmpty()) {
+                sb.append("{}");
+                return;
+            }
+            sb.append("{\n");
+            int index = 0;
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                indent(sb, depth + 1);
+                writeString(String.valueOf(entry.getKey()), sb);
+                sb.append(": ");
+                writeValue(entry.getValue(), sb, depth + 1);
+                if (++index < map.size()) {
+                    sb.append(',');
+                }
+                sb.append('\n');
+            }
+            indent(sb, depth);
+            sb.append('}');
+        } else if (value instanceof List<?> list) {
+            if (list.isEmpty()) {
+                sb.append("[]");
+                return;
+            }
+            sb.append("[\n");
+            for (int i = 0; i < list.size(); i++) {
+                indent(sb, depth + 1);
+                writeValue(list.get(i), sb, depth + 1);
+                if (i + 1 < list.size()) {
+                    sb.append(',');
+                }
+                sb.append('\n');
+            }
+            indent(sb, depth);
+            sb.append(']');
+        } else {
+            writeString(String.valueOf(value), sb);
+        }
+    }
+
+    private static void writeString(String text, StringBuilder sb) {
+        sb.append('"');
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            switch (c) {
+                case '"' -> sb.append("\\\"");
+                case '\\' -> sb.append("\\\\");
+                case '\n' -> sb.append("\\n");
+                case '\r' -> sb.append("\\r");
+                case '\t' -> sb.append("\\t");
+                default -> {
+                    if (c < 0x20) {
+                        sb.append(String.format("\\u%04x", (int) c));
+                    } else {
+                        sb.append(c);
+                    }
+                }
+            }
+        }
+        sb.append('"');
+    }
+
+    private static void indent(StringBuilder sb, int depth) {
+        sb.append("  ".repeat(depth));
+    }
 }

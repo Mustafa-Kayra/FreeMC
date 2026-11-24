@@ -1,74 +1,84 @@
 # FreeMC
 
-Windows ve Linux'ta çalışan, **offline (crack) modda** gerçek Minecraft başlatan launcher.
-Simülasyon değil: oyun dosyalarını Mojang'ın resmî sunucularından indirir, doğrular ve
-vanilla Minecraft istemcisini ayağa kaldırır. Hesap, Microsoft girişi veya premium gerekmez —
-bir kullanıcı adı yeter. Üstüne **Fabric mod yükleyici** ve **tek tıkla Modrinth mod kurulumu** var.
+Windows, Linux ve macOS'ta çalışan **offline (crack) Minecraft launcher'ı**. Oyun dosyalarını
+Mojang'ın resmî sunucularından indirip doğrular, vanilla istemciyi başlatır. Hesap gerekmez.
+Üstüne mod yükleyiciler, Modrinth entegrasyonu, mod paketleri ve otomatik Java kurulumu var.
 
 ```
 FreeMC
-├─ arayüz      Oyna / Modlar sekmeleri, canlı konsol
-├─ indirici    version.json, client.jar, kütüphaneler, natives, assetler
-├─ yükleyici   Fabric profili → inheritsFrom ile vanilla sürümün üstüne bindirilir
-└─ modlar      Modrinth arama, bağımlılıklarla kurulum, elle jar ekleme/silme
+├─ arayüz      Panel · Kütüphane · Profil · Ayarlar, canlı konsol
+├─ çekirdek    sürüm indirme, inheritsFrom birleştirme, komut üretimi
+├─ yükleyici   Fabric (meta API) · Forge / NeoForge (kendi installer'ı)
+├─ modlar      Modrinth arama, tek tıkla kurulum, bağımlılıklar, güncelleme
+└─ mod paketi  .mrpack indirme, overrides kopyalama, profil oluşturma
 ```
 
-## Ne yapıyor
+## Özellikler
 
-- **Sürüm listesi**: Mojang'ın `version_manifest_v2.json` dosyasından, 30 dakika önbellekli.
-- **Kurulum**: `version.json`, client jar, platforma uygun kütüphaneler, natives ve ~3.600 asset
-  nesnesi indirilir; SHA-1 ile doğrulanır, yarım kalan indirmeler yeniden denenir.
-- **Fabric**: `meta.fabricmc.net` üzerinden en yeni stabil loader seçilir, profili indirilir ve
-  `inheritsFrom` zinciri vanilla sürümün üstüne bindirilir (kütüphaneler, JVM argümanları ve
-  asset indeksi ebeveynden miras alınır).
-- **Modrinth**: arama sürüm + yükleyici ile filtrelenir; tek tıkla en uygun dosya ve **zorunlu
-  bağımlılıkları** indirilir (`jei` → `mezz_config` + `fabric-api`). Elle jar ekleme ve silme de var.
-- **Eski sürümler**: 1.7 öncesi `virtual` / `map_to_resources` asset düzeni, `minecraftArguments`
-  şablonu, classifier'lı natives jar'ları.
-- **Offline kimlik**: `OfflinePlayer:<ad>` üzerinden v3 UUID — vanilla'nın offline modda kullandığı
-  UUID'nin aynısı; tek oyunculu, LAN ve offline sunucular bu kimliği kabul eder.
-- **Java seçimi**: sürümün istediği Java aranır; 1.16 ve öncesi için kurulu Java 8 tercih edilir.
-  Eski LWJGL'nin istediği `libjawt`/`jawt.dll` için JDK'nın kendi lib dizini yola eklenir.
+**Oyun**
+- Mojang `version_manifest_v2.json` → sürüm dosyası → client jar → platforma uygun kütüphaneler →
+  natives → asset nesneleri; paralel indirme, SHA-1 doğrulama, yeniden deneme.
+- `inheritsFrom` desteği: Fabric/Forge profilleri vanilla ebeveynin üstüne bindirilir; client jar
+  profilin kendi adıyla kopyalanır (Forge'un modül ignore-list'i buna bağlı).
+- Offline kimlik: `OfflinePlayer:<ad>` v3 UUID, `userType=legacy`.
+- Eski sürümler: `minecraftArguments`, classifier natives, `virtual`/`map_to_resources` asset düzeni.
+
+**Yükleyiciler**
+- **Fabric**: en yeni stabil loader, meta API'den profil, `inheritsFrom` birleştirme.
+- **Forge / NeoForge**: resmî installer headless çalıştırılır (`--installClient`), ürettiği sürüm
+  dosyası aynı boru hattından geçer. Gerekli `launcher_profiles.json` otomatik yazılır.
+
+**Java**
+- Kurulu JVM'ler taranır; sürümün istediği Java yoksa **Adoptium'dan uygun JRE indirilir**,
+  `~/.freemc/jvm/jre-<sürüm>` altına çıkarılır ve o kullanılır. Eski sürümler için kurulu Java 8
+  tercih edilir; `libjawt` için JDK'nın lib dizini yola eklenir.
+
+**Modlar ve paketler**
+- Modrinth araması seçili sürüm + yükleyici ile filtrelenir; tek tıkla kurulum **zorunlu
+  bağımlılıkları** da indirir.
+- Kurulu modlar listesi, elle jar ekleme, silme ve **güncelleme denetimi** (`version_files/update`,
+  hash karşılaştırmalı).
+- `.mrpack` mod paketleri: `modrinth.index.json` okunur, tüm dosyalar indirilir, `overrides` ve
+  `client-overrides` kopyalanır, paket kendi profili olarak açılır.
+
+**Diğer**
+- Hızlı katılma: profilde `host:port` varsa oyun doğrudan o sunucuya bağlanır.
+- Çökme analizi: `crash-reports/` içindeki en yeni rapor Panel'de özetlenir.
+- Profil yöneticisi: her profil kendi oyun klasörü, RAM'i, JVM argümanları ve modlarıyla.
+- Arayüz: koyu/açık tema, Türkçe/İngilizce, kendi çizilmiş ikonlar, gömülü Archivo Narrow + Geist.
+- `jpackage` ile kurulabilir paket (`package.sh` / `package.bat`), GitHub Actions matrisi
+  (Ubuntu, Windows, macOS).
 
 ## Derleme
 
-JDK 17+ gerekir (1.20.5 ve sonrası Java 21, çok yeni sürümler Java 25 ister).
-
-**Linux / macOS**
+JDK 17+ gerekir (uygulama Java 21 ile derlenir ve çalışır).
 
 ```bash
-./build.sh          # dist/freemc.jar
-./run.sh
+./build.sh      # dist/freemc.jar
+./run.sh        # arayüz
+
+./package.sh    # dist/package/FreeMC  (jpackage app-image)
 ```
 
-**Windows**
-
-```bat
-build.bat
-run.bat
-```
+Windows: `build.bat`, `run.bat`, `package.bat`.
 
 ## Kullanım
 
-1. **Oyna** sekmesi: Minecraft sürümünü, yükleyiciyi (Vanilla / Fabric), kullanıcı adını ve belleği seç.
-2. **OYNA** — ilk seferde dosyalar iner (sürüme göre 200–500 MB), sonraki açılışlar hızlıdır.
-3. **Modlar** sekmesi: sürüm Fabric ise Modrinth'te ara, **Kur**'a bas. Modlar
-   `<veri>/instances/<sürüm>-fabric/mods` altına iner; sağdaki listeden silebilir veya
-   "Dosyadan ekle" ile kendi jar'ını koyabilirsin.
-
-Her sürüm/yükleyici kombinasyonu kendi oyun klasörünü kullanır: dünyalar, ayarlar ve modlar
-birbirine karışmaz.
+1. **Panel** → profil yoksa "Yeni profil", varsa doğrudan **OYNA**.
+2. **Kütüphane** → *Mod paketleri* veya *Modlar* sekmesi, ara, **Kur**.
+3. **Profil** → kullanıcı adı (offline UUID otomatik türetilir).
+4. **Ayarlar** → dil, tema, bellek, JVM argümanları, hızlı katılma sunucusu.
 
 ## Komut satırı
 
 ```bash
-java -jar dist/freemc.jar --cli --version 1.20.1 --user Kayra --ram 4096                    # kur
-java -jar dist/freemc.jar --cli --version 1.20.1 --user Kayra --ram 4096 --launch           # kur + başlat
-java -jar dist/freemc.jar --cli --version 1.20.1 --loader fabric --mod jei --user Kayra     # Fabric + JEI
-java -jar dist/freemc.jar --cli --list-versions                                             # sürümleri listele
+java -jar freemc.jar --cli --version 1.20.1 --user Kayra                 # kur
+java -jar freemc.jar --cli --version 1.20.1 --loader fabric --mod jei    # Fabric + JEI
+java -jar freemc.jar --cli --version 1.20.1 --loader forge --launch      # Forge kur + başlat
+java -jar freemc.jar --cli --pack fabulously-optimized                   # mod paketi kur
+java -jar freemc.jar --cli --list-versions
+java -jar freemc.jar --cli --help
 ```
-
-Üretilen tam java komutu `<veri klasörü>/last-command.txt` dosyasına yazılır.
 
 ## Dosya düzeni
 
@@ -76,24 +86,24 @@ java -jar dist/freemc.jar --cli --list-versions                                 
 |---|---|
 | Linux | `~/.freemc` |
 | Windows | `%APPDATA%\FreeMC` |
+| macOS | `~/.freemc` |
 
 ```
 <veri klasörü>/
-├─ versions/<sürüm>/<sürüm>.json      sürüm tanımı (Fabric profili dahil)
-├─ versions/<sürüm>/<sürüm>.jar       client jar
-├─ versions/<sürüm>/natives/          çıkarılmış yerel kütüphaneler
-├─ libraries/                         maven düzeninde kütüphaneler
-├─ assets/indexes, assets/objects     varlıklar (hash'e göre)
-├─ instances/<sürüm>[-fabric]/        oyun klasörü: dünyalar, ayarlar, options.txt
-│   └─ mods/                          mod jar'ları
-└─ freemc.properties                  kullanıcı adı, RAM, son sürüm ve yükleyici
+├─ versions/<sürüm>/            sürüm json, client jar, natives
+├─ libraries/                   maven düzeninde kütüphaneler
+├─ assets/                      asset indeksleri ve nesneleri
+├─ jvm/jre-<sürüm>/             otomatik indirilen Java
+├─ profiles/<profil>/           profile.json, mods/, dünyalar, ayarlar
+├─ installers/                  Forge/NeoForge installer jar'ları
+└─ freemc.properties            kullanıcı adı, aktif profil, dil, tema
 ```
 
 ## Notlar
 
-- Oyun dosyaları indirilir, yeniden dağıtılmaz; yalnızca resmî adresler kullanılır:
-  `piston-meta.mojang.com`, `libraries.minecraft.net`, `resources.download.minecraft.net`,
-  `meta.fabricmc.net`, `api.modrinth.com`.
-- Aynı hash'e sahip dosya tekrar indirilmez.
-- Forge/NeoForge desteklenmiyor; mod yükleyici olarak Fabric var.
-- Linux'ta oyun açılmazsa OpenGL 3.2+ sürücüsü gerekir (`mesa` / ekran kartı sürücüsü).
+- Oyun dosyaları yalnızca resmî kaynaklardan indirilir: `piston-meta.mojang.com`,
+  `libraries.minecraft.net`, `resources.download.minecraft.net`, `meta.fabricmc.net`,
+  `maven.minecraftforge.net`, `maven.neoforged.net`, `api.adoptium.net`, `api.modrinth.com`.
+- Gömülü yazı tipleri Archivo Narrow ve Geist, SIL Open Font License ile gelir.
+- Forge/NeoForge kurulumu resmî installer'ı çalıştırdığı için ilk seferde birkaç dakika sürebilir.
+- Linux'ta oyun açılmazsa OpenGL 3.2+ sürücüsü gerekir.

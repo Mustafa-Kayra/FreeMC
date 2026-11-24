@@ -139,9 +139,12 @@ public final class Version {
                 child.client != null ? child.id : parent.clientOwner);
     }
 
-    /** Path of the client jar this version runs, which may belong to the parent version. */
+    /**
+     * The client jar this version runs. A loader profile gets its own copy named after itself,
+     * because loaders key their module ignore-lists on the version id.
+     */
     public java.nio.file.Path clientJarPath() {
-        return Dirs.versionDir(clientOwner).resolve(clientOwner + ".jar");
+        return Dirs.versionDir(id).resolve(id + ".jar");
     }
 
     private static RemoteFile remote(Map<String, Object> node) {

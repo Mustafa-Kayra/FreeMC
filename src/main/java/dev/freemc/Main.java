@@ -1,6 +1,8 @@
 package dev.freemc;
 
-import dev.freemc.ui.LauncherFrame;
+import dev.freemc.ui.AppState;
+import dev.freemc.ui.Shell;
+import dev.freemc.ui.Theme;
 
 /** Entry point: opens the graphical launcher, or the headless CLI when asked. */
 public final class Main {
@@ -15,6 +17,8 @@ public final class Main {
                 return;
             }
         }
-        javax.swing.SwingUtilities.invokeLater(() -> new LauncherFrame().open());
+        AppState state = new AppState();
+        Theme.init(!"light".equals(state.config.theme()));
+        javax.swing.SwingUtilities.invokeLater(() -> new Shell(state).start());
     }
 }

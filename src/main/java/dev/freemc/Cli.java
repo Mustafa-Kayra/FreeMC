@@ -5,7 +5,7 @@ import dev.freemc.game.CommandBuilder;
 import dev.freemc.game.GameInstall;
 import dev.freemc.game.GameLauncher;
 import dev.freemc.game.GameProcess;
-import dev.freemc.game.Instance;
+import dev.freemc.game.Profile;
 import dev.freemc.game.Installer;
 import dev.freemc.game.Progress;
 import dev.freemc.game.VersionManifest;
@@ -26,8 +26,9 @@ final class Cli {
     static void run(String[] args) {
         String versionId = "1.20.1";
         String username = "Player";
-        String loader = Instance.VANILLA;
+        String loader = Profile.VANILLA;
         String modSlug = null;
+        String packSlug = null;
         int ramMb = 2048;
         boolean launch = false;
         boolean list = false;
@@ -39,6 +40,7 @@ final class Cli {
                 case "--user", "-u" -> username = value(args, i, username);
                 case "--loader" -> loader = value(args, i, loader);
                 case "--mod" -> modSlug = value(args, i, null);
+                case "--pack" -> packSlug = value(args, i, null);
                 case "--ram" -> ramMb = parseInt(value(args, i, Integer.toString(ramMb)), ramMb);
                 case "--launch" -> launch = true;
                 case "--list-versions" -> list = true;
@@ -81,25 +83,35 @@ final class Cli {
                 return;
             }
 
-            Instance instance = Instance.of(versionId, loader);
-            GameInstall install = GameLauncher.ensure(instance, progress);
+            Profile profile;
+            if (packSlug != null) {
+                profile = runPack(packSlug, progress);
+                versionId = profile.mcVersion;
+                loader = profile.loader;
+            } else {
+                profile = findOrCreate(versionId, loader);
+            }
+            GameInstall install = GameLauncher.ensure(profile, progress);
 
             if (modSlug != null) {
-                List<String> installed = Modrinth.install(modSlug, instance.modsDir(), versionId,
-                        instance.loader, progress);
+                List<String> installed = Modrinth.install(modSlug, profile.modsDir(), versionId,
+                        profile.loader, progress);
                 System.out.println("[freemc] modlar: " + (installed.isEmpty() ? "yeni dosya yok" : String.join(", ", installed)));
             }
 
             OfflineAuth auth = OfflineAuth.of(username);
             String java = Jvm.forVersion(install.version.javaMajor, message -> System.out.println("[freemc] " + message));
-            List<String> command = CommandBuilder.build(install, java, auth.name(), auth.uuid(), auth.accessToken(), ramMb);
+            profile.ramMb = ramMb;
+            profile.save();
+            List<String> command = CommandBuilder.build(install, java, auth.name(), auth.uuid(), auth.accessToken(),
+                    ramMb, profile.jvmArgs, profile.quickServer);
             Path commandFile = Dirs.root().resolve("last-command.txt");
             Files.writeString(commandFile, String.join(System.lineSeparator(), command), StandardCharsets.UTF_8);
             System.out.println("[freemc] oyuncu: " + auth.name() + " uuid=" + auth.uuid());
             System.out.println("[freemc] komut dosyası: " + commandFile);
 
             if (launch) {
-                Process process = GameLauncher.start(instance, username, ramMb, progress);
+                Process process = GameLauncher.start(profile, username, progress);
                 System.out.println("[freemc] oyun başlatıldı, pid=" + process.pid());
                 int code = process.waitFor();
                 System.out.println("[freemc] çıkış kodu: " + code);
@@ -112,6 +124,25 @@ final class Cli {
             Thread.currentThread().interrupt();
             System.exit(130);
         }
+    }
+
+    private static Profile runPack(String slug, Progress progress) throws IOException {
+        for (Profile profile : Profile.all()) {
+            if (profile.source.equals("modrinth:" + slug)) {
+                progress.log("Paket zaten kurulu: " + profile.name);
+                return profile;
+            }
+        }
+        return dev.freemc.mods.Modpacks.install(slug, progress);
+    }
+
+    private static Profile findOrCreate(String versionId, String loader) {
+        for (Profile profile : Profile.all()) {
+            if (profile.mcVersion.equals(versionId) && profile.loader.equals(Profile.normalizeLoader(loader))) {
+                return profile;
+            }
+        }
+        return Profile.create(versionId + " " + loader, versionId, Profile.normalizeLoader(loader), "");
     }
 
     private static void usage() {
@@ -128,6 +159,7 @@ final class Cli {
                   --user, -u <ad>         oyuncu adi (varsayilan Player)
                   --ram <mb>              ayrilacak bellek (varsayilan 2048)
                   --mod <slug>            Modrinth'ten mod kur
+                  --pack <slug>           Modrinth mod paketi kur
                   --launch                kurulumdan sonra oyunu baslat
                   --list-versions         surumleri listele
                   --help, -h              bu metni goster

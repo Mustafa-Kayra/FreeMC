@@ -104,6 +104,50 @@ public final class Modrinth {
         return written;
     }
 
+    public record Project(String slug, String title, String description, String body, String author,
+                          long downloads, List<String> categories, List<String> gameVersions) {
+    }
+
+    public static Project project(String slug) throws IOException {
+        Map<String, Object> root = Json.object(Download.text(URI.create(API + "/project/" + encode(slug))));
+        List<String> categories = new ArrayList<>();
+        for (Object category : Json.list(root, "categories")) {
+            if (category instanceof String text) {
+                categories.add(text);
+            }
+        }
+        List<String> versions = new ArrayList<>();
+        for (Object version : Json.list(root, "game_versions")) {
+            if (version instanceof String text) {
+                versions.add(text);
+            }
+        }
+        return new Project(Json.str(root, "slug", slug), Json.str(root, "title", slug),
+                Json.str(root, "description", ""), Json.str(root, "body", ""), Json.str(root, "author", ""),
+                Json.num(root, "downloads", 0), categories, versions);
+    }
+
+    /** Top compatible versions for the detail view. */
+    public static List<String> versionNumbers(String slug, String mcVersion, String loader, int limit)
+            throws IOException {
+        StringBuilder url = new StringBuilder(API).append("/project/").append(encode(slug))
+                .append("/version?game_versions=").append(encode("[\"" + mcVersion + "\"]"));
+        if (loader != null && !"vanilla".equals(loader)) {
+            url.append("&loaders=").append(encode("[\"" + loader + "\"]"));
+        }
+        List<String> numbers = new ArrayList<>();
+        for (Object element : Json.array(Download.text(URI.create(url.toString())))) {
+            String number = Json.str(element, "version_number");
+            if (number != null) {
+                numbers.add(number);
+            }
+            if (numbers.size() >= limit) {
+                break;
+            }
+        }
+        return numbers;
+    }
+
     public static VersionRef newestVersion(String projectIdOrSlug, String mcVersion, String loader) throws IOException {
         StringBuilder url = new StringBuilder(API).append("/project/")
                 .append(encode(projectIdOrSlug)).append("/version?game_versions=")

@@ -86,7 +86,10 @@ public final class DashboardPage implements Page {
 
     private JComponent hero() {
         Profile active = state.active();
-        RoundPanel card = Theme.card(new BorderLayout(18, 0), 22);
+        TexturePanel card = new TexturePanel(12, "block/deepslate_tiles.png", "block/stone.png",
+                "block/dirt.png");
+        card.setLayout(new BorderLayout(18, 0));
+        card.setBorder(new EmptyBorder(22, 24, 22, 24));
 
         JPanel left = new JPanel();
         left.setOpaque(false);

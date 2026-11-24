@@ -17,6 +17,9 @@ import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import javax.swing.JComponent;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 /** Global and per-profile settings: language, theme, memory, JVM flags and the data folder. */
 public final class SettingsPage implements Page {
@@ -59,7 +62,13 @@ public final class SettingsPage implements Page {
         list.add(Box.createVerticalStrut(12));
         list.add(sectionMemory());
         list.add(Box.createVerticalStrut(12));
+        list.add(sectionSkin());
+        list.add(Box.createVerticalStrut(12));
         list.add(sectionProfile());
+        list.add(Box.createVerticalStrut(12));
+        list.add(sectionJava());
+        list.add(Box.createVerticalStrut(12));
+        list.add(sectionCache());
         list.add(Box.createVerticalStrut(12));
         list.add(sectionAbout());
         list.revalidate();
@@ -230,6 +239,223 @@ public final class SettingsPage implements Page {
         JComponent card = frame(Lang.t("nav.profile") + " · " + (active == null ? "—" : active.name), box);
         ((RoundPanel) card).setMaximumSize(new Dimension(Integer.MAX_VALUE, 230));
         return card;
+    }
+
+
+    private JComponent sectionSkin() {
+        Profile active = state.active();
+        JPanel box = new JPanel(new BorderLayout(16, 0));
+        box.setOpaque(false);
+
+        java.awt.image.BufferedImage head = dev.freemc.game.Skin.head(
+                dev.freemc.game.Skin.image(active), 8);
+        JPanel previewBox = new JPanel(new BorderLayout());
+        previewBox.setOpaque(false);
+        previewBox.setPreferredSize(new Dimension(84, 84));
+        previewBox.add(new HeadView(head), BorderLayout.CENTER);
+        box.add(previewBox, BorderLayout.WEST);
+
+        JPanel actions = new JPanel();
+        actions.setOpaque(false);
+        actions.setLayout(new BoxLayout(actions, BoxLayout.Y_AXIS));
+
+        JLabel note = Theme.label(active == null ? Lang.t("lib.need.profile")
+                : active.modded() ? Lang.t("set.skin.note") : Lang.t("set.skin.vanilla"),
+                Theme.body(11f), Theme.TEXT_MUTED);
+        note.setAlignmentX(Component.LEFT_ALIGNMENT);
+        actions.add(note);
+        actions.add(Box.createVerticalStrut(8));
+
+        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        buttons.setOpaque(false);
+        buttons.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        FlatButton pick = new FlatButton(Lang.t("set.skin.pick"), FlatButton.Kind.GHOST).icon("folder");
+        pick.addActionListener(event -> pickSkin());
+        buttons.add(pick);
+
+        FlatButton apply = new FlatButton(Lang.t("set.skin.apply"), FlatButton.Kind.PRIMARY);
+        apply.setEnabled(active != null && active.modded() && dev.freemc.game.Skin.exists(active));
+        apply.addActionListener(event -> applySkin());
+        buttons.add(apply);
+
+        FlatButton clear = new FlatButton(Lang.t("set.skin.clear"), FlatButton.Kind.DANGER);
+        clear.setEnabled(active != null && dev.freemc.game.Skin.exists(active));
+        clear.addActionListener(event -> {
+            try {
+                dev.freemc.game.Skin.clear(active);
+                shell.log("Kostüm kaldırıldı.");
+                build();
+            } catch (java.io.IOException e) {
+                shell.log("Kostüm kaldırılamadı: " + e.getMessage());
+            }
+        });
+        buttons.add(clear);
+
+        actions.add(buttons);
+        box.add(actions, BorderLayout.CENTER);
+
+        JComponent card = frame(Lang.t("set.skin"), box);
+        ((RoundPanel) card).setMaximumSize(new Dimension(Integer.MAX_VALUE, 150));
+        return card;
+    }
+
+    private void pickSkin() {
+        Profile active = state.active();
+        if (active == null) {
+            return;
+        }
+        javax.swing.JFileChooser chooser = new javax.swing.JFileChooser();
+        chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Skin PNG (*.png)", "png"));
+        if (chooser.showOpenDialog(view) != javax.swing.JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+        try {
+            dev.freemc.game.Skin.save(active, chooser.getSelectedFile().toPath());
+            shell.log("Skin kaydedildi: " + chooser.getSelectedFile().getName());
+            build();
+        } catch (java.io.IOException e) {
+            shell.log("Skin yüklenemedi: " + e.getMessage());
+        }
+    }
+
+    private void applySkin() {
+        Profile active = state.active();
+        if (active == null) {
+            return;
+        }
+        shell.status(Lang.t("set.skin.apply"), true);
+        Thread worker = new Thread(() -> {
+            try {
+                dev.freemc.game.Skin.apply(active, state.username(), new dev.freemc.game.Progress() {
+                    @Override
+                    public void log(String message) {
+                        shell.log(message);
+                    }
+                });
+                shell.status(Lang.t("header.ready"), false);
+            } catch (java.io.IOException e) {
+                shell.log("Kostüm uygulanamadı: " + e.getMessage());
+                shell.status(Lang.t("status.error"), false);
+            }
+        }, "freemc-skin");
+        worker.setDaemon(true);
+        worker.start();
+    }
+
+    private JComponent sectionJava() {
+        JPanel box = new JPanel(new BorderLayout(10, 0));
+        box.setOpaque(false);
+        JLabel info = Theme.label("<html>" + Jvm.javaCommand()
+                + "<br>" + Lang.t("set.java.auto") + "</html>", Theme.mono(10f), Theme.OUTLINE);
+        box.add(info, BorderLayout.CENTER);
+        FlatButton redownload = new FlatButton(Lang.t("set.java.redownload"), FlatButton.Kind.GHOST)
+                .icon("download");
+        redownload.addActionListener(event -> {
+            try {
+                deleteTree(Dirs.root().resolve("jvm"));
+                shell.log("Java önbelleği silindi; sonraki başlatmada yeniden inecek.");
+            } catch (java.io.IOException e) {
+                shell.log("Silinemedi: " + e.getMessage());
+            }
+        });
+        box.add(redownload, BorderLayout.EAST);
+        JComponent card = frame(Lang.t("set.java"), box);
+        ((RoundPanel) card).setMaximumSize(new Dimension(Integer.MAX_VALUE, 110));
+        return card;
+    }
+
+    private JComponent sectionCache() {
+        JPanel box = new JPanel(new BorderLayout(10, 6));
+        box.setOpaque(false);
+        long assets = sizeMb(Dirs.root().resolve("assets"));
+        long libraries = sizeMb(Dirs.root().resolve("libraries"));
+        long versions = sizeMb(Dirs.root().resolve("versions"));
+        long jvm = sizeMb(Dirs.root().resolve("jvm"));
+        JLabel info = Theme.label("<html>assets: " + assets + " MB · libraries: " + libraries
+                + " MB · versions: " + versions + " MB · jvm: " + jvm + " MB</html>",
+                Theme.mono(10f), Theme.OUTLINE);
+        box.add(info, BorderLayout.CENTER);
+
+        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        buttons.setOpaque(false);
+        for (String area : new String[]{"assets", "libraries"}) {
+            FlatButton clear = new FlatButton(area + " · " + Lang.t("set.cache.clear"), FlatButton.Kind.GHOST);
+            clear.addActionListener(event -> {
+                try {
+                    deleteTree(Dirs.root().resolve(area));
+                    shell.log(area + " temizlendi; oyun bir sonraki açılışta yeniden indirecek.");
+                    build();
+                } catch (java.io.IOException e) {
+                    shell.log("Temizlenemedi: " + e.getMessage());
+                }
+            });
+            buttons.add(clear);
+        }
+        box.add(buttons, BorderLayout.EAST);
+
+        JComponent card = frame(Lang.t("set.cache"), box);
+        ((RoundPanel) card).setMaximumSize(new Dimension(Integer.MAX_VALUE, 120));
+        return card;
+    }
+
+    private static long sizeMb(Path path) {
+        if (!Files.exists(path)) {
+            return 0;
+        }
+        try (var walk = Files.walk(path)) {
+            return walk.filter(Files::isRegularFile).mapToLong(file -> {
+                try {
+                    return Files.size(file);
+                } catch (java.io.IOException e) {
+                    return 0;
+                }
+            }).sum() / (1024 * 1024);
+        } catch (java.io.IOException e) {
+            return 0;
+        }
+    }
+
+    private static void deleteTree(Path dir) throws java.io.IOException {
+        if (!Files.exists(dir)) {
+            return;
+        }
+        try (var walk = Files.walk(dir)) {
+            for (Path path : (Iterable<Path>) walk::iterator) {
+                Files.deleteIfExists(path);
+            }
+        }
+    }
+
+    /** Renders a skin head, or a neutral block when none is set. */
+    private static final class HeadView extends JComponent {
+        private final java.awt.image.BufferedImage head;
+
+        HeadView(java.awt.image.BufferedImage head) {
+            this.head = head;
+            setPreferredSize(new Dimension(84, 84));
+        }
+
+        @Override
+        protected void paintComponent(java.awt.Graphics graphics) {
+            java.awt.Graphics2D g = (java.awt.Graphics2D) graphics.create();
+            g.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING,
+                    java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+            int size = Math.min(getWidth(), getHeight());
+            g.setColor(Theme.SURFACE_HIGH);
+            g.fillRoundRect(0, 0, size, size, 12, 12);
+            if (head != null) {
+                int inner = size - 16;
+                g.drawImage(head, 8, 8, 8 + inner, 8 + inner, null);
+            } else {
+                g.setColor(Theme.OUTLINE_SOFT);
+                g.setFont(Theme.display(12f));
+                String text = Lang.t("set.skin.empty");
+                int width = g.getFontMetrics().stringWidth(text);
+                g.drawString(text, Math.max(4, (size - width) / 2), size / 2);
+            }
+            g.dispose();
+        }
     }
 
     private JComponent sectionAbout() {

@@ -326,6 +326,7 @@ public final class LibraryPage implements Page {
 
         FlatButton install = new FlatButton(Lang.t("lib.install"), FlatButton.Kind.GHOST).icon("download");
         install.addActionListener(event -> installPack(hit, install));
+        row.add(Images.tile(hit.title(), 44), BorderLayout.WEST);
         row.add(text, BorderLayout.CENTER);
         row.add(install, BorderLayout.EAST);
         row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 96));
@@ -402,6 +403,7 @@ public final class LibraryPage implements Page {
         actions.add(info);
         actions.add(install);
 
+        row.add(Images.tile(hit.title(), 44), BorderLayout.WEST);
         row.add(text, BorderLayout.CENTER);
         row.add(actions, BorderLayout.EAST);
         row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 96));
@@ -471,7 +473,12 @@ public final class LibraryPage implements Page {
             meta.add(Chip.mint(active.describe()));
         }
         titleBox.add(meta);
-        head.add(titleBox, BorderLayout.CENTER);
+
+        JPanel headInfo = new JPanel(new BorderLayout(12, 0));
+        headInfo.setOpaque(false);
+        headInfo.add(Images.tile(hit.title(), 56), BorderLayout.WEST);
+        headInfo.add(titleBox, BorderLayout.CENTER);
+        head.add(headInfo, BorderLayout.CENTER);
 
         FlatButton install = new FlatButton(Lang.t("lib.detail.add"), FlatButton.Kind.PRIMARY).icon("download");
         install.addActionListener(event -> installMod(hit, install));

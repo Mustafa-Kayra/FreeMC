@@ -73,7 +73,9 @@ public final class ProfilePage implements Page {
         JPanel avatarBox = new JPanel(new BorderLayout());
         avatarBox.setOpaque(false);
         avatarBox.setPreferredSize(new Dimension(110, 110));
-        avatarBox.add(new Avatar(username), BorderLayout.CENTER);
+        java.awt.image.BufferedImage head = dev.freemc.game.Skin.head(
+                dev.freemc.game.Skin.image(state.active()), 8);
+        avatarBox.add(new Avatar(username, head), BorderLayout.CENTER);
 
         JPanel text = new JPanel();
         text.setOpaque(false);
@@ -157,9 +159,12 @@ public final class ProfilePage implements Page {
     /** Draws a blocky avatar from the first letter, so no skin fetch is needed offline. */
     private static final class Avatar extends JComponent {
         private final String name;
+        private final java.awt.image.BufferedImage head;
 
-        Avatar(String name) {
+        Avatar(String name, java.awt.image.BufferedImage head) {
             this.name = name;
+            this.head = head;
+            setPreferredSize(new Dimension(110, 110));
         }
 
         @Override
@@ -169,13 +174,17 @@ public final class ProfilePage implements Page {
             int size = Math.min(getWidth(), getHeight());
             g.setColor(Theme.SURFACE_TOP);
             g.fillRoundRect(0, 0, size, size, 16, 16);
-            g.setColor(Theme.ACCENT);
-            g.fillRoundRect(size / 8, size / 8, size * 3 / 4, size * 3 / 4, 12, 12);
-            g.setColor(Theme.ACCENT_INK);
-            g.setFont(Theme.display(36f));
-            String initial = name.isEmpty() ? "?" : name.substring(0, 1).toUpperCase();
-            int width = g.getFontMetrics().stringWidth(initial);
-            g.drawString(initial, (size - width) / 2, size / 2 + 14);
+            if (head != null) {
+                g.drawImage(head, size / 10, size / 10, size - size / 10, size - size / 10, null);
+            } else {
+                g.setColor(Theme.ACCENT);
+                g.fillRoundRect(size / 8, size / 8, size * 3 / 4, size * 3 / 4, 12, 12);
+                g.setColor(Theme.ACCENT_INK);
+                g.setFont(Theme.display(36f));
+                String initial = name.isEmpty() ? "?" : name.substring(0, 1).toUpperCase();
+                int width = g.getFontMetrics().stringWidth(initial);
+                g.drawString(initial, (size - width) / 2, size / 2 + 14);
+            }
             g.dispose();
         }
     }

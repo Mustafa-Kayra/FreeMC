@@ -87,6 +87,19 @@ public final class Lang {
         row("set.open", "Aç", "Open");
         row("set.save", "Kaydet", "Save");
         row("set.saved", "Kaydedildi", "Saved");
+        row("set.skin", "Kostüm", "Skin");
+        row("set.skin.pick", "Skin seç (PNG)", "Choose skin (PNG)");
+        row("set.skin.apply", "Profile uygula", "Apply to profile");
+        row("set.skin.clear", "Kaldır", "Remove");
+        row("set.skin.note", "Kostüm modlu profillerde görünür: CustomSkinLoader kurulur ve skin yerel klasöre yazılır.",
+                "Skins show in modded profiles: CustomSkinLoader is installed and the texture is written locally.");
+        row("set.skin.vanilla", "Bu profil vanilla. Kostüm için Fabric/Forge/NeoForge profili seç.",
+                "This profile is vanilla. Pick a Fabric/Forge/NeoForge profile for skins.");
+        row("set.skin.empty", "Henüz skin seçilmedi.", "No skin chosen yet.");
+        row("set.java.redownload", "Java'yı yeniden indir", "Re-download Java");
+        row("set.cache", "Önbellek", "Cache");
+        row("set.cache.clear", "Temizle", "Clear");
+        row("set.about", "Hakkında", "About");
         row("status.install", "Kuruluyor", "Installing");
         row("status.launch", "Başlatılıyor", "Launching");
         row("status.running", "Oyun çalışıyor", "Game running");

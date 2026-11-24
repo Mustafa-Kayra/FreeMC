@@ -7,6 +7,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -15,6 +16,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.HexFormat;
+import java.util.Map;
 
 /** HTTP(S) file transfer with retries, resume-free atomic writes and SHA-1 verification. */
 public final class Download {
@@ -54,19 +56,31 @@ public final class Download {
                 throw new IOException("indirme kesildi: " + uri, e);
             }
         }
-        throw new IOException("indirilemedi: " + uri + " (" + last.getMessage() + ")", last);
+        throw new IOException("indirilemedi: " + uri + " (" + (last == null ? "?" : last.getMessage()) + ")", last);
     }
 
     public static String text(URI uri) throws IOException {
-        HttpRequest request = HttpRequest.newBuilder(uri)
+        return request(HttpRequest.newBuilder(uri)
                 .timeout(Duration.ofSeconds(60))
+                .header("User-Agent", "FreeMC/1.0")
+                .GET()
+                .build());
+    }
+
+    /** GET that treats 204 No Content as "nothing there" instead of an error. */
+    public static String textOrNull(URI uri) throws IOException {
+        HttpRequest request = HttpRequest.newBuilder(uri)
+                .timeout(Duration.ofSeconds(30))
                 .header("User-Agent", "FreeMC/1.0")
                 .GET()
                 .build();
         try {
             HttpResponse<String> response = CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() == 204) {
+                return null;
+            }
             if (response.statusCode() / 100 != 2) {
-                throw new IOException("HTTP " + response.statusCode() + " for " + uri);
+                throw new IOException(failureMessage(uri, response.statusCode(), response.body()));
             }
             return response.body();
         } catch (InterruptedException e) {
@@ -75,25 +89,43 @@ public final class Download {
         }
     }
 
-
     public static String postJson(URI uri, String body) throws IOException {
-        HttpRequest request = HttpRequest.newBuilder(uri)
+        return request(HttpRequest.newBuilder(uri)
                 .timeout(Duration.ofSeconds(60))
                 .header("User-Agent", "FreeMC/1.0 (launcher)")
                 .header("Content-Type", "application/json")
                 .header("Accept", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(body, java.nio.charset.StandardCharsets.UTF_8))
-                .build();
+                .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
+                .build());
+    }
+
+    private static String request(HttpRequest request) throws IOException {
+        HttpResponse<String> response;
         try {
-            HttpResponse<String> response = CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() / 100 != 2) {
-                throw new IOException("HTTP " + response.statusCode() + " for " + uri);
-            }
-            return response.body();
+            response = CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new IOException("istek kesildi: " + uri, e);
+            throw new IOException("istek kesildi: " + request.uri(), e);
         }
+        if (response.statusCode() / 100 != 2) {
+            throw new IOException(failureMessage(request.uri(), response.statusCode(), response.body()));
+        }
+        return response.body();
+    }
+
+    /** Pulls a human-readable reason out of an API error body when there is one. */
+    private static String failureMessage(URI uri, int status, String body) {
+        String detail = null;
+        try {
+            Map<String, Object> parsed = dev.freemc.json.Json.object(body);
+            detail = dev.freemc.json.Json.str(parsed, "errorMessage");
+            if (detail == null) {
+                detail = dev.freemc.json.Json.str(parsed, "message");
+            }
+        } catch (RuntimeException ignored) {
+            // not JSON, fall back to the status line
+        }
+        return detail == null ? "HTTP " + status + " for " + uri : detail + " (HTTP " + status + ")";
     }
 
     private static void transfer(URI uri, Path part) throws IOException, InterruptedException {

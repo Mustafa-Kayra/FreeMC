@@ -70,6 +70,15 @@ public final class Lang {
         row("prof.mods", "kurulu mod", "installed mods");
         row("prof.packs", "mod paketi", "modpacks");
         row("prof.recent", "Son oynanan", "Recently played");
+        row("prof.ely.hint", "Ely.by hesabınla giriş yap; kostüm ve pelerin oradan gelir. Şifre kaydedilmez, sadece oturum anahtarı.",
+                "Sign in with Ely.by; skin and cape come from there. The password is never stored, only the session token.");
+        row("prof.ely.logged", "bağlı", "linked");
+        row("prof.ely.logged.as", "Bağlı hesap:", "Linked account:");
+        row("prof.ely.nick", "Ely.by takma adı", "Ely.by nickname");
+        row("prof.ely.login", "Giriş yap", "Sign in");
+        row("prof.ely.logout", "Çıkış yap", "Sign out");
+        row("prof.ely.fetch", "Kostümü çek", "Fetch skin");
+        row("prof.ely.apply", "Profile uygula", "Apply to profile");
         row("set.title", "Ayarlar", "Settings");
         row("set.language", "Dil", "Language");
         row("set.theme", "Tema", "Theme");

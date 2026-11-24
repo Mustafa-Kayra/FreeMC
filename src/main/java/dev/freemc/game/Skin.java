@@ -84,6 +84,73 @@ public final class Skin {
         g.drawImage(source, dx, dy, dx + size, dy + size, sx, sy, sx + sw, sy + sh, null);
     }
 
+    public static Path capeFile(Profile profile) {
+        return profile.dir().resolve("cape.png");
+    }
+
+    public static boolean hasCape(Profile profile) {
+        return profile != null && Files.isRegularFile(capeFile(profile));
+    }
+
+    public static void saveCape(Profile profile, Path source) throws IOException {
+        BufferedImage image = ImageIO.read(source.toFile());
+        if (image == null || image.getWidth() < 22) {
+            throw new IOException("Cape dosyası geçersiz: " + source.getFileName());
+        }
+        Files.copy(source, capeFile(profile), StandardCopyOption.REPLACE_EXISTING);
+    }
+
+    public static BufferedImage cape(Profile profile) {
+        if (!hasCape(profile)) {
+            return null;
+        }
+        try {
+            return ImageIO.read(capeFile(profile).toFile());
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
+    /** Front view of the whole skin: head, torso, arms and legs. */
+    public static BufferedImage body(BufferedImage skin, int scale) {
+        if (skin == null) {
+            return null;
+        }
+        int unit = Math.max(2, scale);
+        int width = 16 * unit;
+        int height = 32 * unit;
+        BufferedImage out = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = out.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+
+        part(g, skin, 8, 8, 8, 8, 4, 0, unit);
+        part(g, skin, 20, 20, 8, 12, 4, 8, unit);
+        part(g, skin, 44, 20, 4, 12, 0, 8, unit);
+        part(g, skin, 36, 52, 4, 12, 12, 8, unit);
+        part(g, skin, 4, 20, 4, 12, 4, 20, unit);
+        part(g, skin, 20, 52, 4, 12, 8, 20, unit);
+        if (skin.getHeight() >= 64) {
+            part(g, skin, 40, 8, 8, 8, 4, 0, unit);
+            part(g, skin, 20, 36, 8, 12, 4, 8, unit);
+            part(g, skin, 44, 36, 4, 12, 0, 8, unit);
+            part(g, skin, 52, 52, 4, 12, 12, 8, unit);
+            part(g, skin, 4, 36, 4, 12, 4, 20, unit);
+            part(g, skin, 4, 52, 4, 12, 8, 20, unit);
+        }
+        g.dispose();
+        return out;
+    }
+
+    private static void part(Graphics2D g, BufferedImage source, int sx, int sy, int sw, int sh,
+                             int ux, int uy, int unit) {
+        if (sx + sw > source.getWidth() || sy + sh > source.getHeight()) {
+            return;
+        }
+        int dx = ux * unit;
+        int dy = uy * unit;
+        g.drawImage(source, dx, dy, dx + sw * unit, dy + sh * unit, sx, sy, sx + sw, sy + sh, null);
+    }
+
     public static Path appliedPath(Profile profile, String username) {
         return profile.gameDir().resolve("CustomSkinLoader").resolve("LocalSkin").resolve("skins")
                 .resolve(username + ".png");
@@ -105,6 +172,11 @@ public final class Skin {
         Path target = appliedPath(profile, name);
         Files.createDirectories(target.getParent());
         Files.copy(file(profile), target, StandardCopyOption.REPLACE_EXISTING);
+        if (hasCape(profile)) {
+            Path capeTarget = target.getParent().getParent().resolve("capes").resolve(name + ".png");
+            Files.createDirectories(capeTarget.getParent());
+            Files.copy(capeFile(profile), capeTarget, StandardCopyOption.REPLACE_EXISTING);
+        }
         progress.log("Kostüm uygulandı: " + target);
         return target;
     }

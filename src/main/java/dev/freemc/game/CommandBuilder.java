@@ -29,6 +29,12 @@ public final class CommandBuilder {
 
     public static List<String> build(GameInstall install, String javaCommand, String username, String uuid,
                                      String accessToken, int ramMb, String extraJvmArgs, String quickServer) {
+        return build(install, javaCommand, username, uuid, accessToken, ramMb, extraJvmArgs, quickServer, "legacy");
+    }
+
+    public static List<String> build(GameInstall install, String javaCommand, String username, String uuid,
+                                     String accessToken, int ramMb, String extraJvmArgs, String quickServer,
+                                     String userType) {
         Version version = install.version;
         Map<String, String> values = new HashMap<>();
         values.put("auth_player_name", username);
@@ -37,7 +43,7 @@ public final class CommandBuilder {
         values.put("auth_session", "token:" + accessToken + ":" + uuid.replace("-", ""));
         values.put("auth_xuid", "");
         values.put("clientid", "");
-        values.put("user_type", "legacy");
+        values.put("user_type", userType == null ? "legacy" : userType);
         values.put("user_properties", "{}");
         values.put("version_name", version.id);
         values.put("version_type", version.type);
@@ -142,7 +148,7 @@ public final class CommandBuilder {
         args.add("--accessToken");
         args.add(values.get("auth_access_token"));
         args.add("--userType");
-        args.add("legacy");
+        args.add(values.getOrDefault("user_type", "legacy"));
         args.add("--userProperties");
         args.add("{}");
         return args;

@@ -4,14 +4,15 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 ./build.sh
-rm -rf dist/package
-mkdir -p dist/package
+rm -rf dist/package dist/jpackage-input
+mkdir -p dist/jpackage-input
+cp dist/freemc.jar dist/jpackage-input/
 
 jpackage \
   --type app-image \
   --name FreeMC \
   --app-version 1.1.0 \
-  --input dist \
+  --input dist/jpackage-input \
   --main-jar freemc.jar \
   --main-class dev.freemc.Main \
   --dest dist/package

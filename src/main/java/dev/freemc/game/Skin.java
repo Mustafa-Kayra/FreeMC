@@ -42,6 +42,21 @@ public final class Skin {
         Files.copy(source, file(profile), StandardCopyOption.REPLACE_EXISTING);
     }
 
+    /** Stores a skin painted in the launcher's editor. */
+    public static void save(Profile profile, BufferedImage image) throws IOException {
+        if (image == null) {
+            throw new IOException("Skin boş");
+        }
+        Files.createDirectories(profile.dir());
+        ImageIO.write(image, "png", file(profile).toFile());
+    }
+
+    /** The skin to draw in the interface: the profile's own, or the default when none is set. */
+    public static BufferedImage display(Profile profile) {
+        BufferedImage own = image(profile);
+        return own != null ? own : dev.freemc.ui.SkinTemplates.steve();
+    }
+
     public static void clear(Profile profile) throws IOException {
         Files.deleteIfExists(file(profile));
         Path applied = appliedPath(profile, OfflineAuth.sanitize("Player"));

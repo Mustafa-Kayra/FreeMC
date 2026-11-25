@@ -94,7 +94,7 @@ public final class ProfilePage implements Page {
         card.setBorder(new EmptyBorder(18, 20, 18, 20));
 
         Profile active = state.active();
-        BufferedImage skinImage = Skin.image(active);
+        BufferedImage skinImage = Skin.display(active);
         BufferedImage capeImage = Skin.cape(active);
         JPanel preview = new JPanel(new BorderLayout());
         preview.setOpaque(false);
@@ -159,9 +159,26 @@ public final class ProfilePage implements Page {
             shell.log("Kullanıcı adı: " + state.username());
             refresh();
         });
-        JPanel saveBox = new JPanel(new BorderLayout());
+        FlatButton design = new FlatButton(Lang.t("set.skin.design"), FlatButton.Kind.GHOST).icon("plus");
+        design.addActionListener(event -> {
+            java.awt.Window owner = javax.swing.SwingUtilities.getWindowAncestor(view);
+            SkinEditorDialog dialog = new SkinEditorDialog(owner, Skin.display(active), null);
+            BufferedImage painted = dialog.open();
+            if (painted != null) {
+                try {
+                    Skin.save(active, painted);
+                    shell.log("Kostüm kaydedildi (launcher içinde tasarlandı).");
+                    refresh();
+                } catch (IOException e) {
+                    shell.log("Kostüm kaydedilemedi: " + e.getMessage());
+                }
+            }
+        });
+
+        JPanel saveBox = new JPanel(new BorderLayout(0, 6));
         saveBox.setOpaque(false);
-        saveBox.add(save, BorderLayout.SOUTH);
+        saveBox.add(save, BorderLayout.NORTH);
+        saveBox.add(design, BorderLayout.SOUTH);
         form.add(saveBox, BorderLayout.EAST);
         text.add(form);
 

@@ -97,7 +97,9 @@ public final class Lang {
         row("set.save", "Kaydet", "Save");
         row("set.saved", "Kaydedildi", "Saved");
         row("set.skin", "Kostüm", "Skin");
-        row("set.skin.pick", "Skin seç (PNG)", "Choose skin (PNG)");
+        row("set.skin.pick", "Dosyadan", "From file");
+        row("set.skin.design", "Tasarla", "Design");
+        row("set.skin.default", "Varsayılan Steve", "Default Steve");
         row("set.skin.apply", "Profile uygula", "Apply to profile");
         row("set.skin.clear", "Kaldır", "Remove");
         row("set.skin.note", "Kostüm modlu profillerde görünür: CustomSkinLoader kurulur ve skin yerel klasöre yazılır.",

@@ -98,7 +98,6 @@ public final class Lang {
         row("set.saved", "Kaydedildi", "Saved");
         row("set.skin", "Kostüm", "Skin");
         row("set.skin.pick", "Dosyadan", "From file");
-        row("set.skin.design", "Tasarla", "Design");
         row("set.skin.default", "Varsayılan Steve", "Default Steve");
         row("set.skin.apply", "Profile uygula", "Apply to profile");
         row("set.skin.clear", "Kaldır", "Remove");

@@ -270,11 +270,6 @@ public final class SettingsPage implements Page {
         buttons.setOpaque(false);
         buttons.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        FlatButton design = new FlatButton(Lang.t("set.skin.design"), FlatButton.Kind.GHOST).icon("plus");
-        design.setEnabled(active != null);
-        design.addActionListener(event -> designSkin());
-        buttons.add(design);
-
         FlatButton pick = new FlatButton(Lang.t("set.skin.pick"), FlatButton.Kind.GHOST).icon("folder");
         pick.addActionListener(event -> pickSkin());
         buttons.add(pick);
@@ -303,27 +298,6 @@ public final class SettingsPage implements Page {
         JComponent card = frame(Lang.t("set.skin"), box);
         ((RoundPanel) card).setMaximumSize(new Dimension(Integer.MAX_VALUE, 150));
         return card;
-    }
-
-    private void designSkin() {
-        Profile active = state.active();
-        if (active == null) {
-            return;
-        }
-        java.awt.Window owner = javax.swing.SwingUtilities.getWindowAncestor(view);
-        SkinEditorDialog dialog = new SkinEditorDialog(owner,
-                dev.freemc.game.Skin.display(active), null);
-        java.awt.image.BufferedImage painted = dialog.open();
-        if (painted == null) {
-            return;
-        }
-        try {
-            dev.freemc.game.Skin.save(active, painted);
-            shell.log("Kostüm kaydedildi (launcher içinde tasarlandı).");
-            build();
-        } catch (java.io.IOException e) {
-            shell.log("Kostüm kaydedilemedi: " + e.getMessage());
-        }
     }
 
     private void pickSkin() {

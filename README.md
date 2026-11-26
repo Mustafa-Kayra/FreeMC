@@ -51,7 +51,8 @@ FreeMC
 
 ## Derleme
 
-JDK 17+ gerekir (uygulama Java 21 ile derlenir ve çalışır).
+JDK 17+ gerekir. Uygulama `--release 17` ile derlenir, yani **Java 17, 21, 25** ile çalışır;
+Java 8/11 ile açılmaz (`UnsupportedClassVersionError`).
 
 ```bash
 ./build.sh      # dist/freemc.jar

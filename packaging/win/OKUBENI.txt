@@ -1,0 +1,27 @@
+FreeMC - Minecraft baslatici (Windows)
+
+Bu kurulum Java'yı da getirir: bilgisayarinda Java kurulu olmasina gerek yok.
+
+KURULUM
+  FreeMC-Setup-1.2.0.exe dosyasina cift tikla, Ileri > Kur de.
+  Masaustune ve baslat menusune FreeMC kisayolu eklenir.
+
+CALISTIRMA
+  Masaustundeki FreeMC kisayoluna cift tikla.
+  Bir hata olursa "FreeMC (konsol)" kisayolunu kullan: hata metnini
+  siyah pencerede gosterir, o yaziyi bana yapistir.
+
+ILK ACILIS
+  1) Kutuphanede bir surum sec (or. 1.20.1), Kur'a bas.
+     Oyun dosyalari resmi Mojang sunucularindan indirilir (~500 MB).
+  2) Profiller sekmesinde bir profil olustur, kullanici adini yaz.
+  3) Oyna.
+  Modlar: Modlar sekmesinden Modrinth'ten arama yapip tek tikla kur.
+
+DOSYALAR
+  Oyun ve ayarlar : %APPDATA%\.freemc
+  Program          : %LOCALAPPDATA%\FreeMC
+
+KALDIRMA
+  Baslat menusu > FreeMC > Kaldir, veya Ayarlar > Uygulamalar.
+  Kaldirma oyun dosyalarini silmez.

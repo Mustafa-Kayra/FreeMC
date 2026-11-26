@@ -145,7 +145,7 @@ public final class Shell extends JFrame {
         bar.setAlignmentX(Component.LEFT_ALIGNMENT);
         footer.add(bar);
         footer.add(Box.createVerticalStrut(10));
-        JLabel version = Theme.label("v1.1.0 · offline", Theme.mono(10f), Theme.OUTLINE);
+        JLabel version = Theme.label("v1.2.0 · offline", Theme.mono(10f), Theme.OUTLINE);
         version.setAlignmentX(Component.LEFT_ALIGNMENT);
         footer.add(version);
 

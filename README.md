@@ -63,6 +63,20 @@ Java 8/11 ile açılmaz (`UnsupportedClassVersionError`).
 
 Windows: `build.bat`, `run.bat`, `package.bat`.
 
+### Windows kurulum exe'si (Java gerekmez)
+
+`packaging/win/build-exe.sh` tek dosya bir kurulum üretir: `dist/FreeMC-Setup-1.2.0.exe`.
+Temurin 21 JRE'si, `FreeMC.exe` başlatıcısı ve `freemc.jar` aynı exe'nin içinde,
+yani kullanıcının Java kurmasına gerek yok.
+
+```bash
+sudo apt install mingw-w64 nsis unzip    # bir kere
+./packaging/win/build-exe.sh             # dist/FreeMC-Setup-1.2.0.exe (~30 MB)
+```
+
+`packaging/win/FreeMC.c` küçük bir Win32 başlatıcıdır: kendi klasöründeki
+`jre\bin\javaw.exe` ile `freemc.jar`'ı çalıştırır, Java yoksa anlaşılır hata verir.
+
 ## Kullanım
 
 1. **Panel** → profil yoksa "Yeni profil", varsa doğrudan **OYNA**.
